@@ -1,0 +1,2 @@
+Inference in Graphical Models
+=============================
