@@ -283,15 +283,8 @@ class Factor(Node):
 
 # Load the image and binarize
 im = np.mean(imread('dalmatian1.png'), axis=2) > 0.5
-gray()
-imshow(im)
-
-# # # Add some noise
 noise = np.random.rand(*im.shape) > 0.9
 noise_im = np.logical_xor(noise, im)
-figure()
-imshow(noise_im)
-show()
 # test_im = np.zeros((200,200))
 # test_im[50:150, 50:150] = 1.0
 # test_im[5,5] = 1.0
@@ -371,6 +364,5 @@ for i,row in enumerate(noise_test_im):
     for j,item in enumerate(row):
         new_im[i][j] = latent_variables[i,j].map_state()
 
-figure()
-imshow(new_im)
-show()
+
+scipy.misc.imsave('new_im.png', new_im)
