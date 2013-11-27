@@ -9,7 +9,9 @@ from functools import partial
 import math
 from pylab import imread, gray
 from IPython.core.display import Image 
+import scipy.misc
 
+global_num_pending = 0
 
 class Node(object):
     """
@@ -39,12 +41,17 @@ class Node(object):
 
     def add_neighbour(self, nb):
         self.neighbours.append(nb)
+       
+        
         if self.loopy:
             if isinstance(nb, Factor):
                 self.in_msgs[nb.name] = np.zeros(self.num_states)
             else:
                 self.in_msgs[nb.name] = np.zeros(nb.num_states)
+            
             self.pending.add(nb)
+            global global_num_pending 
+            global_num_pending += 1
 
     def send_sp_msg(self, other):
         # To be implemented in subclass.
@@ -75,10 +82,14 @@ class Node(object):
                 p.remove(neighbor.name)
                 if p.issubset(message_keys):
                     self.pending.add(neighbor)
+
         else:
+            num_msgs_pending = len(self.pending)
             p = list(self.neighbours)
             p.remove(other)
             self.pending.update(p)
+            global global_num_pending 
+            global_num_pending += len(self.pending) - num_msgs_pending
         ################################################################################################
        
     
@@ -191,6 +202,8 @@ class Variable(Node):
         ##print self.name +" -----  " , message , " -------> " + other.name
         other.receive_msg(self, message)
         self.pending.remove(other)
+        global global_num_pending 
+        global_num_pending -= 1 
         #####################################################################################################
 
 class Factor(Node):
@@ -271,6 +284,8 @@ class Factor(Node):
         ##print self.name +" -----  " , message , " -------> " + other.name
         other.receive_msg(self , message)
         self.pending.remove(other)
+        global global_num_pending 
+        global_num_pending -= 1
         #####################################################################################################
 
 
@@ -285,19 +300,21 @@ class Factor(Node):
 im = np.mean(imread('dalmatian1.png'), axis=2) > 0.5
 noise = np.random.rand(*im.shape) > 0.9
 noise_im = np.logical_xor(noise, im)
-# test_im = np.zeros((200,200))
+
+scipy.misc.imsave('noise_im.png', noise_im)
+#test_im = np.zeros((5,5))
 # test_im[50:150, 50:150] = 1.0
 # test_im[5,5] = 1.0
-# figure()
-# imshow(test_im)
+#figure()
+#imshow(test_im)
 
-# # Add some noise
+# Add some noise
 # noise = np.random.rand(*test_im.shape) > 0.8
 # noise_test_im = np.logical_xor(noise, test_im)
-# figure()
-# imshow(noise_test_im)
-# print noise_im.shape
-# print noise_test_im
+#figure()
+#imshow(noise_test_im)
+#print noise_im.shape
+#print noise_test_im
 
 
 observed_variables = {}
@@ -305,7 +322,7 @@ latent_variables = {}
 ol_factors = {}
 l_factors = {}
 lp_factors = {}
-a = 0.7
+a = 0.6
 h = 0.5
 b = 0.9
 # A = array([[exp(a) , exp(-a)],[exp(-a) , exp(a)]])
@@ -318,7 +335,7 @@ B = array([[b , 1-b],[1-b , b]])
 
 o = 0
 l = 0
-for i,row in enumerate(noise_im):
+for i,row in enumerate(im):
     for j,item in enumerate(row):
         observed_variables[i,j] = Variable('y'+str(o),2)
         latent_variables[i,j] = Variable('x'+str(o),2)
@@ -336,6 +353,10 @@ for i,row in enumerate(noise_im):
 
 nodes = observed_variables.values() + ol_factors.values() + lp_factors.values()  + latent_variables.values() + l_factors.values() 
 
+global_pending = []
+for i in nodes:
+    global_pending.append(i.pending)
+
 def send_all_pending(node):
     pend = node.pending.copy()
     for other in pend:
@@ -344,23 +365,23 @@ def send_all_pending(node):
 print len(nodes)
 
 import random
-iterations = 100000
+iterations = 100000000
+#for i in range(iterations):
+i = 0
+#while (True):
 for i in range(iterations):
-    if i%100000 == 0 : print i
+    if i%100000 == 0 :
+        print i
     node = random.sample(nodes,1)
     send_all_pending(node[0])
-#     print "----------------------------------------"
-#     for group in nodes:
-#         for node in group:
-# #            print group[node].name
-#             send_all_pending(group[node])
-#             #print group[node].pending
-#             #break
+
+    i+=1
+    # if global_num_pending == 0:
+    #     break
 
 
-
-new_im = np.zeros((600,750))
-for i,row in enumerate(noise_test_im):
+new_im = np.zeros(im.shape)
+for i,row in enumerate(new_im):
     for j,item in enumerate(row):
         new_im[i][j] = latent_variables[i,j].map_state()
 
